@@ -2,13 +2,31 @@ import React, { useRef, type FormEvent } from "react";
 
 export function APITester() {
   const responseInputRef = useRef<HTMLTextAreaElement>(null);
+  const jsonConfigInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const getText = () => {
+    return async () => {
+      try {
+        // Logic for the second button
+        const res = await fetch("/api/getConfig");
+        const text = await res.json();
+        jsonConfigInputRef.current!.value = JSON.stringify(text, null, 2);
+      } catch (error) {
+        jsonConfigInputRef.current!.value = String(error);
+      }
+    };
+  };
 
   const testEndpoint = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const action = formData.get("action") as string;
+    console.log(`Form Action: ${action}`);
+
     try {
-      const form = e.currentTarget;
-      const formData = new FormData(form);
+      // Default logic for the "Send" button
       const endpoint = formData.get("endpoint") as string;
       const url = new URL(endpoint, location.href);
       const method = formData.get("method") as string;
@@ -47,11 +65,28 @@ export function APITester() {
         />
         <button
           type="submit"
+          name="action"
+          value="send"
           className="bg-[#fbf0df] text-[#1a1a1a] border-0 px-5 py-1.5 rounded-lg font-bold transition-all duration-100 hover:bg-[#f3d5a3] hover:-translate-y-px cursor-pointer whitespace-nowrap"
         >
           Send
         </button>
+        <button
+          type="button"
+          name="action"
+          value="fetchText"
+          className="bg-[#f3d5a3] text-[#1a1a1a] border-0 px-5 py-1.5 rounded-lg font-bold transition-all duration-100 hover:bg-[#fbf0df] hover:-translate-y-px cursor-pointer whitespace-nowrap"
+          onClick={getText()}
+        >
+          Fetch Text
+        </button>
       </form>
+      <textarea
+        ref={jsonConfigInputRef}
+        readOnly
+        placeholder="config.json will appear here..."
+        className="w-full min-h-[140px] bg-[#1a1a1a] border-2 border-[#fbf0df] rounded-xl p-3 text-[#fbf0df] font-mono resize-y focus:border-[#f3d5a3] placeholder-[#fbf0df]/40"
+      />
       <textarea
         ref={responseInputRef}
         readOnly

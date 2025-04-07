@@ -1,0 +1,22 @@
+{
+    "mcpServers": {
+      "weather": {
+        "command": "node",
+        "args": ["C:\\Projects\\mcp-weather\\build\\index.js"]
+      },
+      "memory": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-memory"]
+      },
+      "filesystem": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-filesystem",
+          "C:\\Temp",
+          "C:\\Projects\\Scratch"
+        ]
+      }    
+    }
+  }
+  
