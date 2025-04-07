@@ -47,7 +47,6 @@ Thumbs.db
 *.rej
 *.sublime-workspace
 *.sublime-project
-.vscode/
 *.iml
 *.suo
 *.ntvs*
