@@ -8,33 +8,44 @@ import dotenv from "dotenv";
 
 import index from "./index.html";
 import { readFile } from "fs/promises";
+import Anthropic from "@anthropic-ai/sdk";
 
 dotenv.config();
 
 class MCPClient {
-  private clients: Client[] = [];
-  private tools: Tool[] = [];
+  static clients: Client[] = [];
+  static tools: Tool[] = [];
+  static llm: Anthropic;
 
   constructor() {
-
+    MCPClient.llm = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
   }
   
   // Loop through config and create mcp clients for each entry
-  async createClients() {
+  static async createClients() {
     const config = await getConfig();
-    Object.keys(config).forEach((key) => {
+    const mcpServers: Record<string, { command: string; args: string[] }> = config.mcpServers;
+    const message: string[] = [];
+    Object.keys(mcpServers).forEach((key: string) => {
       const client = new Client({  name: "tool-client", version: "1.0.0" });
-      const transport = new StdioClientTransport({command: config[key].command, args: config[key].args});
+      const transport = new StdioClientTransport({command: mcpServers[key].command, args: mcpServers[key].args});
       client.connect(transport);
-      this.clients.push(client);
+      MCPClient.clients.push(client);
+      message.push(`Added Client ${key}`);
+    });
+    
+    return message;
   }
-  )}
+
+  // Proces Query
 }
 
 const getConfig = async () => {
   try {
     const jsonData = await readFile("./src/data/mcp_server_config.json", "utf-8");
-    return jsonData;
+    return JSON.parse(jsonData); // Parse the JSON string into an object
   } catch (error) {
     console.error("Error reading JSON file:", error);
     throw error; // Rethrow the error to be handled by the caller
@@ -73,12 +84,15 @@ const server = serve({
         });
       },
     },
-
     "/api/hello/:name": async (req) => {
       const name = req.params.name;
       return Response.json({
         message: `Hello, ${name}!`,
       });
+    },
+    "/api/connect": (req) => {
+      const message = MCPClient.createClients();
+      return Response.json(message);
     },
   },
 
