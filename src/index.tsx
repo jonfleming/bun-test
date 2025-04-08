@@ -90,8 +90,8 @@ const server = serve({
         message: `Hello, ${name}!`,
       });
     },
-    "/api/connect": (req) => {
-      const message = MCPClient.createClients();
+    "/api/connect": async (req) => {
+      const message = await MCPClient.createClients();
       return Response.json(message);
     },
   },
