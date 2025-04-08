@@ -1,67 +1,108 @@
-import React, { useRef, type FormEvent } from "react";
+import React, { useRef, type FormEvent, useState } from "react";
 
 export function APITester() {
-  const responseInputRef = useRef<HTMLTextAreaElement>(null);
-  const jsonConfigInputRef = useRef<HTMLTextAreaElement>(null);
+  const responseOutputRef = useRef<HTMLTextAreaElement>(null);
+  const dataButtfferRef = useRef<HTMLTextAreaElement>(null);
+  const [connected, setConnected] = useState(false);
 
   const getText = () => {
     return async () => {
       try {
         // Logic for the second button
         const res = await fetch("/api/getConfig");
-        const text = await res.json();
-        jsonConfigInputRef.current!.value = JSON.stringify(text, null, 2);
+        const json = await res.json();
+        responseOutputRef.current!.value = responseOutputRef.current!.value + JSON.stringify(json, null, 2) +
+        "\n\nMCP Servers:\n" + dataButtfferRef.current!.value;
+        scrollToBottom();
       } catch (error) {
-        jsonConfigInputRef.current!.value = String(error);
+        responseOutputRef.current!.value = String(error);
+        scrollToBottom();
       }
     };
   };
 
-  const testEndpoint = async (e: FormEvent<HTMLFormElement>) => {
+  const scrollToBottom = () => {
+    if (responseOutputRef.current) {
+      responseOutputRef.current.scrollTop = responseOutputRef.current.scrollHeight;
+    }
+  };
+
+  const connect = async  () => {
+    responseOutputRef.current!.value = "Connecting...";
+    const res = await fetch("/api/connect");
+    const json = await res.json();
+    dataButtfferRef.current!.value = JSON.stringify(json, null, 2);
+    responseOutputRef.current!.value = "Connected";
+  }
+
+  const sendRequest = async (e: FormEvent<HTMLFormElement>) => {
+    console.log("Sending Request");
     e.preventDefault();
 
+    if (!connected) {
+      await connect();
+      setConnected(true);
+      return;
+    }
+    
     const form = e.currentTarget;
     const formData = new FormData(form);
-    const action = formData.get("action") as string;
-    console.log(`Form Action: ${action}`);
+    const body = formData.get("input") as string;
+    
+    if (!body) return;
 
     try {
       // Default logic for the "Send" button
-      const endpoint = formData.get("endpoint") as string;
+      const endpoint = "/api/chat";
       const url = new URL(endpoint, location.href);
-      const method = formData.get("method") as string;
-      const res = await fetch(url, { method });
+      const options: RequestInit = {
+        method: "POST",
+        body: JSON.stringify({query: body}),
+        headers: { "Content-Type": "application/json" } 
+      };
 
+      responseOutputRef.current!.value = responseOutputRef.current!.value + "\n" + body;
+      scrollToBottom();  
+      console.log("making it here - fetch");
+      const res = await fetch(url, options);
+     
       const data = await res.json();
-      responseInputRef.current!.value = JSON.stringify(data, null, 2);
+      console.log("Response: ", res, data);
+
+      if (data.message) {
+        responseOutputRef.current!.value = responseOutputRef.current!.value + "\n" + data.message.content;  
+        scrollToBottom();
+      }
     } catch (error) {
-      responseInputRef.current!.value = String(error);
+      console.error("Error:", error);
+      responseOutputRef.current!.value = String(error);
+      scrollToBottom();
     }
   };
 
   return (
-    <div className="mt-8 mx-auto w-full max-w-2xl text-left flex flex-col gap-4">
+    <div className="w-full text-left flex flex-col gap-4">
+     <textarea
+        ref={responseOutputRef}
+        placeholder="Response will appear here..."
+        className="w-full min-h-[520px] bg-[#1a1a1a] border-2 border-[#fbf0df] rounded-xl p-3 text-[#fbf0df] font-mono resize-y focus:border-[#f3d5a3] placeholder-[#fbf0df]/40"
+        readOnly
+      />
+     <textarea
+        ref={dataButtfferRef}
+        placeholder="Response will appear here..."
+        className="hidden"        
+      />
       <form
-        onSubmit={testEndpoint}
+        onSubmit={sendRequest}
         className="flex items-center gap-2 bg-[#1a1a1a] p-3 rounded-xl font-mono border-2 border-[#fbf0df] transition-colors duration-300 focus-within:border-[#f3d5a3] w-full"
       >
-        <select
-          name="method"
-          className="bg-[#fbf0df] text-[#1a1a1a] py-1.5 px-3 rounded-lg font-bold text-sm min-w-[0px] appearance-none cursor-pointer hover:bg-[#f3d5a3] transition-colors duration-100"
-        >
-          <option value="GET" className="py-1">
-            GET
-          </option>
-          <option value="PUT" className="py-1">
-            PUT
-          </option>
-        </select>
         <input
           type="text"
-          name="endpoint"
-          defaultValue="/api/hello"
+          name="input"
           className="w-full flex-1 bg-transparent border-0 text-[#fbf0df] font-mono text-base py-1.5 px-2 outline-none focus:text-white placeholder-[#fbf0df]/40"
-          placeholder="/api/hello"
+          placeholder="How can I help you today?"
+          readOnly={!connected}
         />
         <button
           type="submit"
@@ -69,7 +110,7 @@ export function APITester() {
           value="send"
           className="bg-[#fbf0df] text-[#1a1a1a] border-0 px-5 py-1.5 rounded-lg font-bold transition-all duration-100 hover:bg-[#f3d5a3] hover:-translate-y-px cursor-pointer whitespace-nowrap"
         >
-          Send
+          { connected ? ("Send") : ("Connect") }
         </button>
         <button
           type="button"
@@ -78,21 +119,10 @@ export function APITester() {
           className="bg-[#f3d5a3] text-[#1a1a1a] border-0 px-5 py-1.5 rounded-lg font-bold transition-all duration-100 hover:bg-[#fbf0df] hover:-translate-y-px cursor-pointer whitespace-nowrap"
           onClick={getText()}
         >
-          Fetch Text
+          Config
         </button>
       </form>
-      <textarea
-        ref={jsonConfigInputRef}
-        readOnly
-        placeholder="config.json will appear here..."
-        className="w-full min-h-[140px] bg-[#1a1a1a] border-2 border-[#fbf0df] rounded-xl p-3 text-[#fbf0df] font-mono resize-y focus:border-[#f3d5a3] placeholder-[#fbf0df]/40"
-      />
-      <textarea
-        ref={responseInputRef}
-        readOnly
-        placeholder="Response will appear here..."
-        className="w-full min-h-[140px] bg-[#1a1a1a] border-2 border-[#fbf0df] rounded-xl p-3 text-[#fbf0df] font-mono resize-y focus:border-[#f3d5a3] placeholder-[#fbf0df]/40"
-      />
+
     </div>
   );
 }
